@@ -1,5 +1,3 @@
-import Store from "electron-store";
-
 export type AppSettings = {
   apiKey?: string;
   n8nWebhookUrl?: string;
@@ -10,28 +8,52 @@ export type AppSettings = {
   sttTransport?: string;
 };
 
-const DEFAULT_HOTKEY = "CommandOrControl+Shift+Space";
+export const DEFAULT_HOTKEY = "CommandOrControl+Shift+Space";
 
-const store = new Store<AppSettings>({
-  defaults: {
-    hotkey: DEFAULT_HOTKEY
+let store: any | null = null;
+let storeInit: Promise<any> | null = null;
+
+async function ensureStore() {
+  if (store) return store;
+  if (!storeInit) {
+    storeInit = import("electron-store").then((mod) => {
+      const Store = mod.default ?? mod;
+      store = new Store<AppSettings>({
+        defaults: {
+          hotkey: DEFAULT_HOTKEY
+        }
+      });
+      return store;
+    });
   }
-});
+  return storeInit;
+}
+
+function getStore() {
+  if (!store) {
+    throw new Error("Settings store not initialized. Call initSettingsStore() first.");
+  }
+  return store;
+}
+
+export async function initSettingsStore() {
+  await ensureStore();
+}
 
 export function getApiKey(): string | undefined {
-  return store.get("apiKey");
+  return getStore().get("apiKey");
 }
 
 export function getSettingsSafe() {
-  const hotkey = store.get("hotkey", DEFAULT_HOTKEY);
+  const hotkey = getStore().get("hotkey", DEFAULT_HOTKEY);
   return {
     hotkey,
-    apiKeyPresent: Boolean(store.get("apiKey")),
-    n8nWebhookUrl: store.get("n8nWebhookUrl", ""),
-    n8nSecretPresent: Boolean(store.get("n8nSharedSecret")),
-    sttLanguage: store.get("sttLanguage", "auto"),
-    sttModel: store.get("sttModel", "gpt-4o-transcribe"),
-    sttTransport: store.get("sttTransport", "batch")
+    apiKeyPresent: Boolean(getStore().get("apiKey")),
+    n8nWebhookUrl: getStore().get("n8nWebhookUrl", ""),
+    n8nSecretPresent: Boolean(getStore().get("n8nSharedSecret")),
+    sttLanguage: getStore().get("sttLanguage", "auto"),
+    sttModel: getStore().get("sttModel", "gpt-4o-transcribe"),
+    sttTransport: getStore().get("sttTransport", "batch")
   };
 }
 
@@ -47,50 +69,50 @@ export function setSettings(input: {
   if (input.apiKey !== undefined) {
     const trimmed = input.apiKey.trim();
     if (trimmed.length === 0) {
-      store.delete("apiKey");
+      getStore().delete("apiKey");
     } else {
-      store.set("apiKey", trimmed);
+      getStore().set("apiKey", trimmed);
     }
   }
   if (input.n8nWebhookUrl !== undefined) {
-    store.set("n8nWebhookUrl", input.n8nWebhookUrl.trim());
+    getStore().set("n8nWebhookUrl", input.n8nWebhookUrl.trim());
   }
   if (input.n8nSharedSecret !== undefined) {
-    store.set("n8nSharedSecret", input.n8nSharedSecret.trim());
+    getStore().set("n8nSharedSecret", input.n8nSharedSecret.trim());
   }
   if (input.sttLanguage !== undefined) {
-    store.set("sttLanguage", input.sttLanguage.trim());
+    getStore().set("sttLanguage", input.sttLanguage.trim());
   }
   if (input.sttModel !== undefined) {
-    store.set("sttModel", input.sttModel.trim());
+    getStore().set("sttModel", input.sttModel.trim());
   }
   if (input.sttTransport !== undefined) {
-    store.set("sttTransport", input.sttTransport.trim());
+    getStore().set("sttTransport", input.sttTransport.trim());
   }
   if (input.hotkey !== undefined) {
-    store.set("hotkey", input.hotkey.trim());
+    getStore().set("hotkey", input.hotkey.trim());
   }
 }
 
 export function getHotkey(): string {
-  return store.get("hotkey", DEFAULT_HOTKEY);
+  return getStore().get("hotkey", DEFAULT_HOTKEY);
 }
 
 export function getN8nConfig() {
   return {
-    url: store.get("n8nWebhookUrl", "").trim(),
-    secret: store.get("n8nSharedSecret", "").trim()
+    url: getStore().get("n8nWebhookUrl", "").trim(),
+    secret: getStore().get("n8nSharedSecret", "").trim()
   };
 }
 
 export function getSttLanguage(): string {
-  return store.get("sttLanguage", "auto");
+  return getStore().get("sttLanguage", "auto");
 }
 
 export function getSttModel(): string {
-  return store.get("sttModel", "gpt-4o-transcribe");
+  return getStore().get("sttModel", "gpt-4o-transcribe");
 }
 
 export function getSttTransport(): string {
-  return store.get("sttTransport", "batch");
+  return getStore().get("sttTransport", "batch");
 }

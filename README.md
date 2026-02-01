@@ -48,7 +48,7 @@ Ablauf: **Hotkey → Aufnahme → Transkription → Enrichment → Ergebnis (eve
 ## Setup
 
 ### Voraussetzungen
-- Node.js (empfohlen: **22+** via nvm)
+- Node.js (empfohlen: **24+** via nvm)
 - OpenAI API Key
 
 ### Installation

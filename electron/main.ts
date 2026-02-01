@@ -1,7 +1,8 @@
 import { app, BrowserWindow, globalShortcut, Menu, nativeImage, Tray } from "electron";
+import fs from "fs";
 import path from "path";
 import { registerIpcHandlers } from "./ipcMainHandlers";
-import { getHotkey } from "./settings";
+import { DEFAULT_HOTKEY, getHotkey, initSettingsStore } from "./settings";
 import { SttClient } from "./sttClient";
 import { initHistoryDb } from "./historyDb";
 
@@ -9,13 +10,17 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 let isRecording = false;
-let currentHotkey = getHotkey();
+let currentHotkey = DEFAULT_HOTKEY;
 const platformIcon = process.platform === "win32" ? "icon.ico" : "icon.png";
 const platformRecordingIcon = process.platform === "win32" ? "icon-recording.ico" : "icon-recording.png";
 
 function resolveAssetPath(filename: string) {
   if (app.isPackaged) {
-    return path.join(process.resourcesPath, "assets", filename);
+    const packagedPath = path.join(app.getAppPath(), "electron", "assets", filename);
+    if (fs.existsSync(packagedPath)) return packagedPath;
+    const resourcesPath = path.join(process.resourcesPath, "assets", filename);
+    if (fs.existsSync(resourcesPath)) return resourcesPath;
+    return packagedPath;
   }
   return path.join(__dirname, "assets", filename);
 }
@@ -181,8 +186,10 @@ const sttClient = new SttClient({
   }
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   app.setAppUserModelId("com.everlast.voice");
+  await initSettingsStore();
+  currentHotkey = getHotkey();
   initHistoryDb();
   createMainWindow();
   createTray();
@@ -216,6 +223,8 @@ app.on("will-quit", () => {
   globalShortcut.unregisterAll();
 });
 
-app.on("window-all-closed", (event: Electron.Event) => {
-  event.preventDefault();
+app.on("window-all-closed", () => {
+  if (isQuitting) {
+    app.quit();
+  }
 });

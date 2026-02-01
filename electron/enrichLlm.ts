@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { Mode, RunOutput, ChangeLogEntry } from "../src/lib/schemas";
+import { Mode, RunOutput, ChangeLogEntry, changeLogEntrySchema } from "../src/lib/schemas";
 import { getApiKey } from "./settings";
 import { getModeById, listModes, listModeDefinitions } from "./modes";
 import { ModeDefinition } from "./modes/types";
@@ -198,7 +198,7 @@ async function classifyMode(apiKey: string, transcript: string): Promise<string>
 
 function parseAndValidate(
   response: any,
-  validator: z.ZodSchema
+  validator: z.ZodType<RunOutput>
 ): { ok: true; value: RunOutput } | { ok: false; error: string } {
   try {
     const payload = extractJsonPayload(response);
@@ -211,7 +211,7 @@ function parseAndValidate(
 
 function parseAndValidateUpdate(
   response: any,
-  validator: z.ZodSchema
+  validator: z.ZodType<{ result: RunOutput; change_log: ChangeLogEntry[] }>
 ): { ok: true; value: { result: RunOutput; change_log: ChangeLogEntry[] } } | { ok: false; error: string } {
   try {
     const payload = extractJsonPayload(response);
@@ -258,14 +258,16 @@ function resolveMode(id: string): ModeDefinition {
   return mode;
 }
 
-function buildEnvelopeZodSchema(dataSchema: z.ZodTypeAny) {
-  return z.object({
-    clean_transcript: z.string(),
-    summary: z.string(),
-    actions: z.array(z.string()),
-    tags: z.array(z.string()),
-    data: dataSchema
-  });
+function buildEnvelopeZodSchema(dataSchema: z.ZodTypeAny): z.ZodType<RunOutput> {
+  return z
+    .object({
+      clean_transcript: z.string(),
+      summary: z.string(),
+      actions: z.array(z.string()),
+      tags: z.array(z.string()),
+      data: dataSchema
+    })
+    .transform((value) => value as RunOutput);
 }
 
 function buildEnvelopeJsonSchema(dataSchema: Record<string, unknown>) {
@@ -283,16 +285,12 @@ function buildEnvelopeJsonSchema(dataSchema: Record<string, unknown>) {
   };
 }
 
-function buildUpdateZodSchema(dataSchema: z.ZodTypeAny) {
+function buildUpdateZodSchema(
+  dataSchema: z.ZodTypeAny
+): z.ZodType<{ result: RunOutput; change_log: ChangeLogEntry[] }> {
   return z.object({
     result: buildEnvelopeZodSchema(dataSchema),
-    change_log: z.array(
-      z.object({
-        path: z.string(),
-        before: z.string().nullable(),
-        after: z.string().nullable()
-      })
-    )
+    change_log: z.array(changeLogEntrySchema)
   });
 }
 
