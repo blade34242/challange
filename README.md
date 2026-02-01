@@ -119,6 +119,8 @@ Wir haben den Plan gezielt erweitert, um **Stabilität**, **Nutzbarkeit** und **
 - **Inline‑Transcript‑Edit + Re‑Run:** Korrekturen ohne Neuaufnahme.
 - **Follow‑Up Updates mit Change‑Log:** Folge‑Transkripte aktualisieren vorhandene Daten und zeigen Änderungen.
 - **SQLite‑Verlauf mit Namen:** Runs können benannt und geladen werden.
+- **better‑sqlite3 → sql.js (WASM):** native Builds verursachen Windows‑Build‑Hürden (Visual Studio, ABI‑Mismatches).  
+  Für Contest‑Portabilität setzen wir auf **WASM‑SQLite**, damit Builds auf Linux/Windows **ohne Compiler** laufen.
 - **Configurable Modes (JS/TS + Zod):** Felder sind per Schema definierbar, sicher validiert und flexibel erweiterbar.
 
 

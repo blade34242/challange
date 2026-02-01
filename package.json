@@ -34,7 +34,12 @@
     "appId": "com.everlast.voice",
     "productName": "Everlast Voice Intelligence",
     "win": {
-      "icon": "electron/assets/icon.ico"
+      "icon": "electron/assets/icon.png"
+    },
+    "linux": {
+      "icon": "electron/assets/icon.png",
+      "category": "Utility",
+      "target": ["AppImage"]
     },
     "files": [
       "dist/electron/**/*",
