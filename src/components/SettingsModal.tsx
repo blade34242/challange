@@ -96,7 +96,7 @@ export function SettingsModal(props: {
         <label>
           Hotkey
           <div className="settings-row">
-            <input type="text" value={hotkey} readOnly />
+            <input type="text" value={formatHotkeyLabel(hotkey)} readOnly />
             <button
               className="secondary"
               onClick={() => {
@@ -316,4 +316,8 @@ function normalizeKey(key: string, code: string) {
 
 function isModifierKey(key: string) {
   return key === "Shift" || key === "Control" || key === "Alt" || key === "Meta";
+}
+
+function formatHotkeyLabel(value: string) {
+  return value.replace(/Space/g, "SPACE");
 }
