@@ -106,13 +106,11 @@ function applyHotkey(hotkey: string) {
 
 function updateHotkey(nextHotkey: string) {
   if (nextHotkey === currentHotkey) return true;
-  const ok = globalShortcut.register(nextHotkey, () => handleRecordHotkey());
-  if (!ok) return false;
-  if (currentHotkey) {
-    globalShortcut.unregister(currentHotkey);
+  const ok = applyHotkey(nextHotkey);
+  if (!ok) {
+    applyHotkey(currentHotkey);
   }
-  currentHotkey = nextHotkey;
-  return true;
+  return ok;
 }
 
 async function showOverlay() {
