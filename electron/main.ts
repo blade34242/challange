@@ -14,6 +14,15 @@ let currentHotkey = DEFAULT_HOTKEY;
 const platformIcon = process.platform === "win32" ? "icon.ico" : "icon.png";
 const platformRecordingIcon = process.platform === "win32" ? "icon-recording.ico" : "icon-recording.png";
 
+const gotSingleInstanceLock = app.requestSingleInstanceLock();
+if (!gotSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    void showOverlay();
+  });
+}
+
 function resolveAssetPath(filename: string) {
   if (app.isPackaged) {
     const packagedPath = path.join(app.getAppPath(), "electron", "assets", filename);
