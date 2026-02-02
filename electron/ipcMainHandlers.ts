@@ -7,7 +7,7 @@ import { enrichTranscript, updateWithFollowUp } from "./enrichLlm";
 import { DEFAULT_HOTKEY, getSettingsSafe, resetSettings, setSettings } from "./settings";
 import { Mode } from "../src/lib/schemas";
 import { sendWebhook, WebhookPayload } from "./n8nWebhook";
-import { getRun, listRunsWithResults, renameRun, saveRun, setRunCoverage } from "./historyDb";
+import { getRun, listRunsWithResults, renameRun, saveRun, setRunCoverage, RunListRow } from "./historyDb";
 import { listModes, getModeById } from "./modes";
 import { computeCoverage } from "./schemaCoverage";
 
@@ -222,7 +222,7 @@ export function registerIpcHandlers(params: {
   });
 
   ipcMain.handle("history.list", async (_event, payload?: { limit?: number }) => {
-    const rows = await listRunsWithResults(payload?.limit ?? 50);
+    const rows: RunListRow[] = await listRunsWithResults(payload?.limit ?? 50);
     const items = rows.map((row) => {
       let coverage = typeof row.coverage === "number" ? row.coverage : null;
       if (coverage === null && row.result) {

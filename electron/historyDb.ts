@@ -16,6 +16,17 @@ type RunRow = {
   coverage: number | null;
 };
 
+export type RunListRow = {
+  id: number;
+  name: string;
+  created_at: string;
+  mode: string;
+  is_followup: number;
+  parent_id: number | null;
+  coverage: number | null;
+  result: any;
+};
+
 let sqlPromise: Promise<SqlJsStatic> | null = null;
 let db: Database | null = null;
 let dbPath: string | null = null;
@@ -163,7 +174,7 @@ export async function listRuns(limit = 50) {
   );
 }
 
-export async function listRunsWithResults(limit = 50) {
+export async function listRunsWithResults(limit = 50): Promise<RunListRow[]> {
   const database = await ensureDb();
   const rows = queryRows(
     database,
@@ -174,7 +185,13 @@ export async function listRunsWithResults(limit = 50) {
     [limit]
   );
   return rows.map((row) => ({
-    ...row,
+    id: Number(row["id"]),
+    name: String(row["name"]),
+    created_at: String(row["created_at"]),
+    mode: String(row["mode"]),
+    is_followup: Number(row["is_followup"]),
+    parent_id: row["parent_id"] === null ? null : Number(row["parent_id"]),
+    coverage: row["coverage"] === null || row["coverage"] === undefined ? null : Number(row["coverage"]),
     result: row["result_json"] ? JSON.parse(String(row["result_json"])) : null
   }));
 }
