@@ -48,6 +48,16 @@ export default function Home() {
     changeLog: ChangeLogEntry[];
     mode: Mode;
   } | null>(null);
+  const [followUpSnapshot, setFollowUpSnapshot] = useState<{
+    result: LlmResult;
+    resolvedMode: Mode | null;
+    coverage: number | null;
+    changeLog: ChangeLogEntry[];
+    runName: string;
+    runNameSaved: string;
+    finalTranscript: string;
+    editableTranscript: string;
+  } | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [coverage, setCoverage] = useState<number | null>(null);
   const [currentRunId, setCurrentRunId] = useState<number | null>(null);
@@ -70,6 +80,7 @@ export default function Home() {
     mode: null,
     id: null
   });
+  const followUpStartRef = useRef(false);
 
   useEffect(() => {
     modeRef.current = mode;
@@ -206,11 +217,24 @@ export default function Home() {
         setCurrentRunNameSaved(name);
         setCurrentRunNameDirty(false);
         setPendingUpdate(null);
+        setFollowUpSnapshot(null);
         void refreshHistory();
         setAppState("done");
       }),
       ipcClient.on("llm.updatePreview", ({ json, mode: chosenMode, changeLog, token }) => {
         setPendingUpdate({ token, result: json, changeLog: changeLog ?? [], mode: chosenMode });
+        if (followUpSnapshot) {
+          setResult(followUpSnapshot.result);
+          setResolvedMode(followUpSnapshot.resolvedMode);
+          setCoverage(followUpSnapshot.coverage);
+          setChangeLog(followUpSnapshot.changeLog);
+          setCurrentRunName(followUpSnapshot.runName);
+          setCurrentRunNameSaved(followUpSnapshot.runNameSaved);
+          setCurrentRunNameDirty(false);
+          setFinalTranscript(followUpSnapshot.finalTranscript);
+          setEditableTranscript(followUpSnapshot.editableTranscript);
+          setEditedDirty(false);
+        }
         setAppState("done");
       }),
       ipcClient.on("llm.updated", ({ json, mode: chosenMode, changeLog, runId, coverage }) => {
@@ -227,6 +251,7 @@ export default function Home() {
         setPendingUpdate(null);
         setFollowUpBase(null);
         setFollowUpMode(null);
+        setFollowUpSnapshot(null);
         void refreshHistory();
         setAppState("done");
       }),
@@ -288,6 +313,9 @@ export default function Home() {
     setChangeLog([]);
     setExportOpen(false);
     setPendingUpdate(null);
+    if (!followUpStartRef.current) {
+      setFollowUpSnapshot(null);
+    }
 
     try {
       const response = await ipcClient.invoke("stt.start");
@@ -305,6 +333,8 @@ export default function Home() {
     } catch (err: any) {
       setError(err?.message ?? "Unable to start recording");
       setAppState("error");
+    } finally {
+      followUpStartRef.current = false;
     }
   };
 
@@ -455,6 +485,17 @@ export default function Home() {
 
   const handleFollowUpRecord = () => {
     if (!result || !currentRunId) return;
+    followUpStartRef.current = true;
+    setFollowUpSnapshot({
+      result,
+      resolvedMode: overrideMode ?? resolvedMode ?? null,
+      coverage,
+      changeLog,
+      runName: currentRunName,
+      runNameSaved: currentRunNameSaved,
+      finalTranscript,
+      editableTranscript
+    });
     setFollowUpBase(result);
     setFollowUpMode(overrideMode ?? resolvedMode ?? "note");
     setChangeLog([]);
@@ -481,6 +522,20 @@ export default function Home() {
     setPendingUpdate(null);
     setFollowUpBase(null);
     setFollowUpMode(null);
+    if (followUpSnapshot) {
+      setResult(followUpSnapshot.result);
+      setResolvedMode(followUpSnapshot.resolvedMode);
+      setCoverage(followUpSnapshot.coverage);
+      setChangeLog(followUpSnapshot.changeLog);
+      setCurrentRunName(followUpSnapshot.runName);
+      setCurrentRunNameSaved(followUpSnapshot.runNameSaved);
+      setCurrentRunNameDirty(false);
+      setFinalTranscript(followUpSnapshot.finalTranscript);
+      setEditableTranscript(followUpSnapshot.editableTranscript);
+      setEditedDirty(false);
+    }
+    setFollowUpSnapshot(null);
+    setAppState("done");
   };
 
   const handleHistoryLoad = async (id: number) => {
@@ -505,6 +560,7 @@ export default function Home() {
       setCurrentRunId(run.id);
       setCoverage(run.coverage ?? null);
       setPendingUpdate(null);
+      setFollowUpSnapshot(null);
       const name = run.name ?? "Untitled Run";
       setCurrentRunName(name);
       setCurrentRunNameSaved(name);
@@ -583,6 +639,7 @@ export default function Home() {
     setFollowUpBase(null);
     setFollowUpMode(null);
     setPendingUpdate(null);
+    setFollowUpSnapshot(null);
     setCurrentRunId(null);
     setCoverage(null);
     setCurrentRunName("Untitled Run");
