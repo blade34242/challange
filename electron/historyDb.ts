@@ -30,6 +30,7 @@ export type RunListRow = {
 let sqlPromise: Promise<SqlJsStatic> | null = null;
 let db: Database | null = null;
 let dbPath: string | null = null;
+let recoveredCorruptDb = false;
 
 function getDbPath() {
   if (!dbPath) {
@@ -70,25 +71,64 @@ async function ensureDb() {
   const SQL = await loadSqlJs();
   const filePath = getDbPath();
   let fileData: Uint8Array | undefined;
-  if (fs.existsSync(filePath)) {
-    fileData = new Uint8Array(fs.readFileSync(filePath));
+  const hasFile = fs.existsSync(filePath);
+  if (hasFile) {
+    const stat = fs.statSync(filePath);
+    if (stat.size > 0) {
+      fileData = new Uint8Array(fs.readFileSync(filePath));
+    }
   }
-  db = new SQL.Database(fileData);
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS runs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      mode TEXT NOT NULL,
-      transcript TEXT NOT NULL,
-      result_json TEXT NOT NULL,
-      change_log_json TEXT,
-      is_followup INTEGER NOT NULL DEFAULT 0,
-      parent_id INTEGER,
-      coverage REAL
-    );
-  `);
-  ensureCoverageColumn(db);
+
+  let shouldReset = false;
+  try {
+    db = new SQL.Database(fileData);
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        transcript TEXT NOT NULL,
+        result_json TEXT NOT NULL,
+        change_log_json TEXT,
+        is_followup INTEGER NOT NULL DEFAULT 0,
+        parent_id INTEGER,
+        coverage REAL
+      );
+    `);
+    ensureCoverageColumn(db);
+  } catch {
+    shouldReset = true;
+    recoveredCorruptDb = true;
+    try {
+      if (hasFile) {
+        const backup = `${filePath}.corrupt-${Date.now()}`;
+        fs.renameSync(filePath, backup);
+      }
+    } catch {
+      // ignore rename failures, we'll still reset
+    }
+    db = new SQL.Database();
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        transcript TEXT NOT NULL,
+        result_json TEXT NOT NULL,
+        change_log_json TEXT,
+        is_followup INTEGER NOT NULL DEFAULT 0,
+        parent_id INTEGER,
+        coverage REAL
+      );
+    `);
+    ensureCoverageColumn(db);
+  }
+
+  if (!hasFile || shouldReset) {
+    await persistDb(db);
+  }
   return db;
 }
 
@@ -126,6 +166,10 @@ export async function initHistoryDb() {
   if (!fs.existsSync(getDbPath())) {
     await persistDb(database);
   }
+}
+
+export function didRecoverCorruptDb() {
+  return recoveredCorruptDb;
 }
 
 export async function saveRun(params: {
